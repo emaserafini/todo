@@ -1,3 +1,8 @@
+socks:
+  image: busybox
+  volumes:
+    - /socks
+
 db:
   image: postgres
   ports:
@@ -5,9 +10,20 @@ db:
 
 web:
   build: .
+  command: bundle exec unicorn -c config/unicorn.rb -l /socks/unicorn.todo.sock
   volumes:
     - .:/app
+  volumes_from:
+    - socks
   ports:
     - "3000:3000"
   links:
     - db
+
+nginx:
+  build: container/nginx
+  ports:
+    - "80:80"
+  volumes_from:
+    - web
+    - socks
