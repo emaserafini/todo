@@ -2,28 +2,42 @@ socks:
   image: busybox
   volumes:
     - /socks
+    - /pids
 
 db:
   image: postgres
   ports:
     - "5432"
 
-web:
+redis:
+  image: redis
+
+sidekiq:
+  build: .
+  command: bundle exec sidekiq
+  links:
+    - db
+    - redis
+  environment:
+    REDIS_URL: redis://redis:6379
+
+app:
   build: .
   command: bundle exec unicorn -c config/unicorn.rb -l /socks/unicorn.todo.sock
   volumes:
     - .:/app
   volumes_from:
     - socks
-  ports:
-    - "3000:3000"
   links:
     - db
+    - redis
+  environment:
+    REDIS_URL: redis://redis:6379
 
-nginx:
+web:
   build: container/nginx
   ports:
     - "80:80"
   volumes_from:
-    - web
+    - app
     - socks

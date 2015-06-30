@@ -31,5 +31,8 @@ module Todo
 
     # Do not swallow errors in after_commit/after_rollback callbacks.
     config.active_record.raise_in_transactional_callbacks = true
+    redis_db  = ENV.fetch('REDIS_DB', '0')
+    redis_host = ENV.fetch('REDIS_URL', 'redis://localhost:6379')
+    config.redis = { db: redis_db, host: redis_host, url: File.join(redis_host, redis_db) }
   end
 end
