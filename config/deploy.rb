@@ -35,33 +35,57 @@ set :repo_url, 'git@github.com:emaserafini/todo.git'
 # set :keep_releases, 5
 
 
-
 namespace :deploy do
-  before :starting, :stop_app do
+
+  after :set_current_revision, :build_images do
     on roles(:app) do
-      # execute 'docker', 'stop', 'app'
-    end
-  end
-  before :updated, :build_app do
-    on roles(:app) do
-      within current_path do
+      unless test("docker ps -f status=running | grep ' db '")
+        if test("docker ps -a | grep ' db '")
+          execute :docker, :start, 'db'
+        else
+          execute :docker, :run, '-d', '-p 5432:5432', '--name=db postgres'
+        end
+      end
+      unless test("docker ps -f status=running | grep ' redis '")
+        if test("docker ps -a | grep ' redis '")
+          execute :docker, :start, 'redis'
+        else
+          execute :docker, :run, '-d --name=redis redis'
+        end
+      end
+      within release_path do
         execute :docker, :build, '--rm', '-t', :app, '.'
       end
     end
   end
+
+  before :starting, :stop_app do
+    on roles(:app) do
+      if test("docker ps -f status=running | grep ' app '")
+        execute :docker, :stop, 'app'
+      end
+      if test("docker ps -a | grep ' app '")
+        execute :docker, :rm, 'app'
+      end
+    end
+  end
+  # before :updated, :build_app do
+  #   on roles(:app) do
+  #     within current_path do
+  #       execute :docker, :build, '--rm', '-t', :app, '.'
+  #     end
+  #   end
+  # end
   after :updated, :migrate do
     on roles(:app) do
-      # ci mette qualche secondo a partire
-      execute :docker, :run, '-d', '-p 5432:5432', '--name=db postgres'
-      sleep 5
-      execute :docker, :run, '--link', 'db:db', :app, 'rake db:create db:migrate'
+      execute :docker, :run, '--rm --link db:db app rake db:create db:migrate'
     end
   end
 end
 
 after :deploy, :start_app do
   on roles(:app) do
-    execute :docker, :run, '-d', '--link', 'db:db', :app, 'rails s'
+    execute :docker, :run, '-d --link db:db -p 80:3000 --name=app app rails s -b 0.0.0.0'
   end
 end
 

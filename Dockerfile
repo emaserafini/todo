@@ -6,7 +6,7 @@ RUN mkdir /app
 COPY Gemfile /app/Gemfile
 COPY Gemfile.lock /app/Gemfile.lock
 WORKDIR /app
-RUN bundle install
+RUN bundle install --without development test
 ADD . /app
 
 ENV RAILS_ENV production
